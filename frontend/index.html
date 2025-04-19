@@ -556,92 +556,135 @@
                 </div>
             </div>
 
-            <!-- Request Detail Modal -->
-            <div class="modal fade" id="requestDetailModal" tabindex="-1">
-                <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">
-                            <i class="fas fa-book me-2"></i>คู่มือการใช้งานระบบ
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <!-- Request Detail Modal -->
+<div class="modal fade" id="requestDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-alt me-2"></i>รายละเอียดคำขอเอกสาร
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>เลขที่คำขอ:</strong> <span id="modalRequestId"></span></p>
+                        <p><strong>วันที่ยื่นคำขอ:</strong> <span id="modalRequestDate"></span></p>
+                        <p><strong>ประเภทเอกสาร:</strong> <span id="modalDocumentType"></span></p>
+                        <p><strong>จำนวนฉบับ:</strong> <span id="modalCopies"></span></p>
+                        <p><strong>วัตถุประสงค์:</strong> <span id="modalPurpose"></span></p>
                     </div>
-                    <div class="modal-body">
-                        <h5>วิธีการใช้งานระบบขอเอกสารทางการศึกษาออนไลน์</h5>
-                        
-                        <div class="mb-4">
-                            <h6><i class="fas fa-user-plus me-2 text-primary"></i>การลงทะเบียนใช้งาน</h6>
-                            <ol>
-                                <li>คลิกที่ปุ่ม "เข้าสู่ระบบ" ที่มุมบนขวาของหน้าเว็บไซต์</li>
-                                <li>คลิกที่ลิงก์ "ลงทะเบียนใช้งานระบบ"</li>
-                                <li>กรอกข้อมูลให้ครบถ้วน โดยเฉพาะข้อมูลที่มีเครื่องหมาย * กำกับ</li>
-                                <li>คลิกที่ปุ่ม "ลงทะเบียน" เพื่อดำเนินการ</li>
-                                <li>ระบบจะส่งอีเมลยืนยันการลงทะเบียนไปยังอีเมลที่คุณให้ไว้</li>
-                            </ol>
+                    <div class="col-md-6">
+                        <p><strong>วิธีการรับเอกสาร:</strong> <span id="modalDeliveryMethod"></span></p>
+                        <div id="modalAddressDiv">
+                            <p><strong>ที่อยู่จัดส่ง:</strong> <span id="modalAddress"></span></p>
                         </div>
-                        
-                        <div class="mb-4">
-                            <h6><i class="fas fa-file-signature me-2 text-primary"></i>การขอเอกสาร</h6>
-                            <ol>
-                                <li>เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่านของคุณ</li>
-                                <li>คลิกที่ปุ่ม "ขอเอกสาร" หรือเลือกเมนู "ขอเอกสาร"</li>
-                                <li>เลือกประเภทเอกสารที่ต้องการ</li>
-                                <li>กรอกรายละเอียดตามที่ระบบกำหนด</li>
-                                <li>อัปโหลดเอกสารประกอบ (ถ้ามี)</li>
-                                <li>เลือกวิธีการรับเอกสาร</li>
-                                <li>ตรวจสอบและยืนยันข้อมูล</li>
-                                <li>ชำระค่าธรรมเนียม</li>
-                                <li>ระบบจะแสดงหมายเลขคำขอเพื่อใช้ในการติดตามสถานะ</li>
-                            </ol>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <h6><i class="fas fa-credit-card me-2 text-primary"></i>การชำระเงิน</h6>
-                            <ol>
-                                <li>หลังจากส่งคำขอเอกสาร ระบบจะนำคุณไปยังหน้าชำระเงิน</li>
-                                <li>เลือกวิธีการชำระเงิน (บัตรเครดิต/เดบิต หรือการโอนเงิน)</li>
-                                <li>
-                                    <strong>การชำระผ่านบัตรเครดิต/เดบิต:</strong> กรอกข้อมูลบัตรและทำตามขั้นตอนที่ระบบกำหนด
-                                </li>
-                                <li>
-                                    <strong>การชำระโดยการโอนเงิน:</strong> โอนเงินตามจำนวนที่ระบุและอัปโหลดหลักฐานการโอนเงิน
-                                </li>
-                                <li>เมื่อชำระเงินเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันการชำระเงินให้คุณ</li>
-                            </ol>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <h6><i class="fas fa-tasks me-2 text-primary"></i>การติดตามสถานะ</h6>
-                            <ol>
-                                <li>เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่านของคุณ</li>
-                                <li>คลิกที่เมนู "ติดตามสถานะ"</li>
-                                <li>ระบบจะแสดงรายการคำขอทั้งหมดของคุณพร้อมสถานะปัจจุบัน</li>
-                                <li>คลิกที่ปุ่ม "รายละเอียด" เพื่อดูข้อมูลเพิ่มเติมของคำขอนั้นๆ</li>
-                            </ol>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <h6><i class="fas fa-info-circle me-2 text-primary"></i>ความหมายของสถานะต่างๆ</h6>
-                            <ul>
-                                <li><span class="badge bg-secondary me-2">รอดำเนินการ</span> คำขอของคุณได้รับการบันทึกในระบบแล้ว แต่ยังไม่ได้เริ่มดำเนินการ</li>
-                                <li><span class="badge bg-warning me-2">รอชำระเงิน</span> คุณต้องชำระค่าธรรมเนียมเพื่อให้คำขอของคุณได้รับการดำเนินการต่อ</li>
-                                <li><span class="badge bg-info me-2">กำลังดำเนินการ</span> เจ้าหน้าที่กำลังดำเนินการจัดทำเอกสารของคุณ</li>
-                                <li><span class="badge bg-success me-2">เสร็จสิ้น</span> เอกสารของคุณพร้อมให้รับแล้ว</li>
-                                <li><span class="badge bg-danger me-2">ถูกปฏิเสธ</span> คำขอของคุณถูกปฏิเสธ โปรดตรวจสอบรายละเอียดและติดต่อเจ้าหน้าที่</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
-                        <button type="button" class="btn btn-primary" id="printGuide">
-                            <i class="fas fa-print me-2"></i>พิมพ์คู่มือ
-                        </button>
+                        <p><strong>สถานะปัจจุบัน:</strong> <span id="modalStatus" class="badge"></span></p>
                     </div>
                 </div>
+                
+                <hr>
+                
+                <h6>ประวัติการดำเนินการ</h6>
+                <div class="timeline" id="modalTimeline">
+                    <!-- ประวัติการดำเนินการจะถูกเพิ่มด้วย JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn btn-primary" id="printRequestDetail">
+                    <i class="fas fa-print me-2"></i>พิมพ์
+                </button>
             </div>
         </div>
     </div>
+</div>
 
+            <!-- User Guide Modal -->
+<div class="modal fade" id="userGuideModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-book me-2"></i>คู่มือการใช้งานระบบ
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h5>วิธีการใช้งานระบบขอเอกสารทางการศึกษาออนไลน์</h5>
+                
+                <div class="mb-4">
+                    <h6><i class="fas fa-user-plus me-2 text-primary"></i>การลงทะเบียนใช้งาน</h6>
+                    <ol>
+                        <li>คลิกที่ปุ่ม "เข้าสู่ระบบ" ที่มุมบนขวาของหน้าเว็บไซต์</li>
+                        <li>คลิกที่ลิงก์ "ลงทะเบียนใช้งานระบบ"</li>
+                        <li>กรอกข้อมูลให้ครบถ้วน โดยเฉพาะข้อมูลที่มีเครื่องหมาย * กำกับ</li>
+                        <li>คลิกที่ปุ่ม "ลงทะเบียน" เพื่อดำเนินการ</li>
+                        <li>ระบบจะส่งอีเมลยืนยันการลงทะเบียนไปยังอีเมลที่คุณให้ไว้</li>
+                    </ol>
+                </div>
+                
+                <div class="mb-4">
+                    <h6><i class="fas fa-file-signature me-2 text-primary"></i>การขอเอกสาร</h6>
+                    <ol>
+                        <li>เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่านของคุณ</li>
+                        <li>คลิกที่ปุ่ม "ขอเอกสาร" หรือเลือกเมนู "ขอเอกสาร"</li>
+                        <li>เลือกประเภทเอกสารที่ต้องการ</li>
+                        <li>กรอกรายละเอียดตามที่ระบบกำหนด</li>
+                        <li>อัปโหลดเอกสารประกอบ (ถ้ามี)</li>
+                        <li>เลือกวิธีการรับเอกสาร</li>
+                        <li>ตรวจสอบและยืนยันข้อมูล</li>
+                        <li>ชำระค่าธรรมเนียม</li>
+                        <li>ระบบจะแสดงหมายเลขคำขอเพื่อใช้ในการติดตามสถานะ</li>
+                    </ol>
+                </div>
+                
+                <div class="mb-4">
+                    <h6><i class="fas fa-credit-card me-2 text-primary"></i>การชำระเงิน</h6>
+                    <ol>
+                        <li>หลังจากส่งคำขอเอกสาร ระบบจะนำคุณไปยังหน้าชำระเงิน</li>
+                        <li>เลือกวิธีการชำระเงิน (บัตรเครดิต/เดบิต หรือการโอนเงิน)</li>
+                        <li>
+                            <strong>การชำระผ่านบัตรเครดิต/เดบิต:</strong> กรอกข้อมูลบัตรและทำตามขั้นตอนที่ระบบกำหนด
+                        </li>
+                        <li>
+                            <strong>การชำระโดยการโอนเงิน:</strong> โอนเงินตามจำนวนที่ระบุและอัปโหลดหลักฐานการโอนเงิน
+                        </li>
+                        <li>เมื่อชำระเงินเรียบร้อยแล้ว ระบบจะส่งอีเมลยืนยันการชำระเงินให้คุณ</li>
+                    </ol>
+                </div>
+                
+                <div class="mb-4">
+                    <h6><i class="fas fa-tasks me-2 text-primary"></i>การติดตามสถานะ</h6>
+                    <ol>
+                        <li>เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่านของคุณ</li>
+                        <li>คลิกที่เมนู "ติดตามสถานะ"</li>
+                        <li>ระบบจะแสดงรายการคำขอทั้งหมดของคุณพร้อมสถานะปัจจุบัน</li>
+                        <li>คลิกที่ปุ่ม "รายละเอียด" เพื่อดูข้อมูลเพิ่มเติมของคำขอนั้นๆ</li>
+                    </ol>
+                </div>
+                
+                <div class="mb-4">
+                    <h6><i class="fas fa-info-circle me-2 text-primary"></i>ความหมายของสถานะต่างๆ</h6>
+                    <ul>
+                        <li><span class="badge bg-secondary me-2">รอดำเนินการ</span> คำขอของคุณได้รับการบันทึกในระบบแล้ว แต่ยังไม่ได้เริ่มดำเนินการ</li>
+                        <li><span class="badge bg-warning me-2">รอชำระเงิน</span> คุณต้องชำระค่าธรรมเนียมเพื่อให้คำขอของคุณได้รับการดำเนินการต่อ</li>
+                        <li><span class="badge bg-info me-2">กำลังดำเนินการ</span> เจ้าหน้าที่กำลังดำเนินการจัดทำเอกสารของคุณ</li>
+                        <li><span class="badge bg-success me-2">เสร็จสิ้น</span> เอกสารของคุณพร้อมให้รับแล้ว</li>
+                        <li><span class="badge bg-danger me-2">ถูกปฏิเสธ</span> คำขอของคุณถูกปฏิเสธ โปรดตรวจสอบรายละเอียดและติดต่อเจ้าหน้าที่</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn btn-primary" id="printGuide">
+                    <i class="fas fa-print me-2"></i>พิมพ์คู่มือ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
     <!-- Footer -->
     <footer class="footer mt-auto">
         <div class="container">
