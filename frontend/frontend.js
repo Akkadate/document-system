@@ -776,7 +776,575 @@ document.addEventListener('DOMContentLoaded', function() {
                    document.getElementById('deliveryFee').textContent = `${deliveryFee.toFixed(2)} บาท`;
                    document.getElementById('totalFee').textContent = `${(documentFee + deliveryFee).toFixed(2)} บาท`;
                }
+// ตัวแปรและฟังก์ชันสำหรับหน้าผู้ดูแลระบบ
+let isAdmin = false;
+let adminRequests = [];
+const adminPage = document.getElementById('adminPage');
 
+// แสดงหน้าผู้ดูแลระบบ
+function showAdminPage() {
+    if (!isLoggedIn) {
+        showLogin();
+        showAlert('กรุณาเข้าสู่ระบบ', 'warning');
+        return;
+    }
+    
+    if (!isAdmin) {
+        showHome();
+        showAlert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'danger');
+        return;
+    }
+    
+    homePage.style.display = 'none';
+    loginPage.style.display = 'none';
+    registerPage.style.display = 'none';
+    requestPage.style.display = 'none';
+    statusPage.style.display = 'none';
+    document.getElementById('paymentPage').style.display = 'none';
+    adminPage.style.display = 'block';
+    
+    // โหลดข้อมูลคำขอทั้งหมด
+    loadAdminRequests();
+}
+
+// เพิ่มเมนู Admin ในกรณีที่เป็นผู้ดูแลระบบ
+function updateNavbarForAdmin() {
+    const navbarNav = document.querySelector('#navbarNav .navbar-nav');
+    
+    // ตรวจสอบว่ามีเมนู Admin อยู่แล้วหรือไม่
+    if (!document.getElementById('adminLink') && isAdmin) {
+        const adminNavItem = document.createElement('li');
+        adminNavItem.className = 'nav-item';
+        adminNavItem.innerHTML = `
+            <a class="nav-link" href="#" id="adminLink">
+                <i class="fas fa-user-shield me-1"></i>จัดการระบบ
+            </a>
+        `;
+        navbarNav.appendChild(adminNavItem);
+        
+        // เพิ่ม Event Listener
+        document.getElementById('adminLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            showAdminPage();
+        });
+    }
+}
+
+// ตรวจสอบว่าผู้ใช้เป็นผู้ดูแลระบบหรือไม่
+function checkAdminStatus() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    
+    fetch('/api/user/profile', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        isAdmin = data.user.is_admin || false;
+        updateNavbarForAdmin();
+    })
+    .catch(error => {
+        console.error('Error checking admin status:', error);
+    });
+}
+
+// โหลดข้อมูลคำขอสำหรับผู้ดูแลระบบ
+function loadAdminRequests() {
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    authenticatedFetch('/api/admin/requests')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            adminRequests = data;
+            
+            // นับจำนวนคำขอรอดำเนินการ
+            const pendingCount = adminRequests.filter(req => req.status === 'pending').length;
+            document.getElementById('pendingRequestCount').textContent = pendingCount;
+            
+            // แสดงข้อมูลในตาราง
+            updateAdminTables();
+        })
+        .catch(error => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            console.error('Error loading admin requests:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูลคำขอ', 'danger');
+        });
+}
+
+// อัปเดตตารางข้อมูลในแต่ละแท็บ
+function updateAdminTables() {
+    // แท็บคำขอรอดำเนินการ
+    const pendingRequests = adminRequests.filter(req => req.status === 'pending');
+    updateAdminTable('pendingRequestsTable', pendingRequests);
+    
+    // แท็บกำลังดำเนินการ
+    const processingRequests = adminRequests.filter(req => req.status === 'processing');
+    updateAdminTable('processingRequestsTable', processingRequests);
+    
+    // แท็บเสร็จสิ้นแล้ว
+    const completedRequests = adminRequests.filter(req => req.status === 'completed');
+    updateAdminTable('completedRequestsTable', completedRequests);
+    
+    // แท็บถูกปฏิเสธ
+    const rejectedRequests = adminRequests.filter(req => req.status === 'rejected');
+    updateAdminTable('rejectedRequestsTable', rejectedRequests);
+    
+    // แท็บทั้งหมด
+    updateAdminTable('allRequestsTable', adminRequests);
+}
+
+// อัปเดตข้อมูลในตาราง
+function updateAdminTable(tableId, requests) {
+    const tableBody = document.getElementById(tableId);
+    tableBody.innerHTML = '';
+    
+    if (requests.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6" class="text-center">ไม่มีคำขอเอกสาร</td>`;
+        tableBody.appendChild(row);
+        return;
+    }
+    
+    requests.forEach(request => {
+        const row = document.createElement('tr');
+        
+        // กำหนดสีของ badge ตามสถานะ
+        const statusClass = getStatusClass(request.status);
+        const statusText = getStatusText(request.status);
+        
+        // คอลัมน์ที่แสดงขึ้นอยู่กับประเภทตาราง
+        if (tableId === 'pendingRequestsTable') {
+            row.innerHTML = `
+                <td>${request.request_id}</td>
+                <td>${new Date(request.request_date).toLocaleDateString('th-TH')}</td>
+                <td>${request.document_name}</td>
+                <td>${request.first_name} ${request.last_name}</td>
+                <td><span class="badge bg-info">รอชำระเงิน</span></td>
+                <td>
+                    <button class="btn btn-sm btn-info admin-view-details" data-id="${request.request_id}">
+                        <i class="fas fa-eye me-1"></i>รายละเอียด
+                    </button>
+                    <button class="btn btn-sm btn-warning admin-update-status" data-id="${request.request_id}">
+                        <i class="fas fa-edit me-1"></i>อัปเดตสถานะ
+                    </button>
+                </td>
+            `;
+        } else if (tableId === 'processingRequestsTable') {
+            // ค้นหาวันที่เริ่มดำเนินการ
+            const processingHistory = request.history?.find(h => h.status === 'processing');
+            const processingDate = processingHistory ? new Date(processingHistory.created_at).toLocaleDateString('th-TH') : '-';
+            
+            row.innerHTML = `
+                <td>${request.request_id}</td>
+                <td>${new Date(request.request_date).toLocaleDateString('th-TH')}</td>
+                <td>${request.document_name}</td>
+                <td>${request.first_name} ${request.last_name}</td>
+                <td>${processingDate}</td>
+                <td>
+                    <button class="btn btn-sm btn-info admin-view-details" data-id="${request.request_id}">
+                        <i class="fas fa-eye me-1"></i>รายละเอียด
+                    </button>
+                    <button class="btn btn-sm btn-success admin-update-status" data-id="${request.request_id}">
+                        <i class="fas fa-check-circle me-1"></i>ทำเสร็จแล้ว
+                    </button>
+                </td>
+            `;
+        } else if (tableId === 'completedRequestsTable') {
+            // ค้นหาวันที่เสร็จสิ้น
+            const completedHistory = request.history?.find(h => h.status === 'completed');
+            const completedDate = completedHistory ? new Date(completedHistory.created_at).toLocaleDateString('th-TH') : '-';
+            
+            const deliveryMethod = request.delivery_method === 'pickup' ? 'รับด้วยตนเอง' : 'จัดส่งทางไปรษณีย์';
+            
+            row.innerHTML = `
+                <td>${request.request_id}</td>
+                <td>${new Date(request.request_date).toLocaleDateString('th-TH')}</td>
+                <td>${request.document_name}</td>
+                <td>${request.first_name} ${request.last_name}</td>
+                <td>${completedDate}</td>
+                <td>${deliveryMethod}</td>
+                <td>
+                    <button class="btn btn-sm btn-info admin-view-details" data-id="${request.request_id}">
+                        <i class="fas fa-eye me-1"></i>รายละเอียด
+                    </button>
+                </td>
+            `;
+        } else if (tableId === 'rejectedRequestsTable') {
+            // ค้นหาข้อมูลการปฏิเสธ
+            const rejectedHistory = request.history?.find(h => h.status === 'rejected');
+            const rejectedReason = rejectedHistory ? rejectedHistory.comment : '-';
+            
+            row.innerHTML = `
+                <td>${request.request_id}</td>
+                <td>${new Date(request.request_date).toLocaleDateString('th-TH')}</td>
+                <td>${request.document_name}</td>
+                <td>${request.first_name} ${request.last_name}</td>
+                <td>${rejectedReason}</td>
+                <td>
+                    <button class="btn btn-sm btn-info admin-view-details" data-id="${request.request_id}">
+                        <i class="fas fa-eye me-1"></i>รายละเอียด
+                    </button>
+                </td>
+            `;
+        } else if (tableId === 'allRequestsTable') {
+            row.innerHTML = `
+                <td>${request.request_id}</td>
+                <td>${new Date(request.request_date).toLocaleDateString('th-TH')}</td>
+                <td>${request.document_name}</td>
+                <td>${request.first_name} ${request.last_name}</td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-info admin-view-details" data-id="${request.request_id}">
+                        <i class="fas fa-eye me-1"></i>รายละเอียด
+                    </button>
+                    ${request.status !== 'completed' && request.status !== 'rejected' ? `
+                    <button class="btn btn-sm btn-warning admin-update-status" data-id="${request.request_id}">
+                        <i class="fas fa-edit me-1"></i>อัปเดตสถานะ
+                    </button>
+                    ` : ''}
+                </td>
+            `;
+        }
+        
+        tableBody.appendChild(row);
+    });
+    
+    // เพิ่ม Event Listener สำหรับปุ่มต่างๆ
+    document.querySelectorAll('.admin-view-details').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.getAttribute('data-id');
+            showAdminRequestDetails(requestId);
+        });
+    });
+    
+    document.querySelectorAll('.admin-update-status').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.getAttribute('data-id');
+            showUpdateStatusModal(requestId);
+        });
+    });
+}
+
+// แสดง Modal รายละเอียดคำขอสำหรับผู้ดูแลระบบ
+function showAdminRequestDetails(requestId) {
+    // ค้นหาข้อมูลคำขอจาก ID
+    const request = adminRequests.find(req => req.request_id === requestId);
+    if (!request) {
+        showAlert('ไม่พบข้อมูลคำขอ', 'danger');
+        return;
+    }
+    
+    // แสดงข้อมูลบนหน้าต่าง modal
+    document.getElementById('adminModalRequestId').textContent = request.request_id;
+    document.getElementById('adminModalRequestDate').textContent = new Date(request.request_date).toLocaleDateString('th-TH');
+    document.getElementById('adminModalDocumentType').textContent = request.document_name;
+    document.getElementById('adminModalCopies').textContent = request.copies;
+    document.getElementById('adminModalPurpose').textContent = request.purpose;
+    
+    // ข้อมูลนักศึกษา
+    document.getElementById('adminModalStudentId').textContent = request.student_id;
+    document.getElementById('adminModalStudentName').textContent = `${request.first_name} ${request.last_name}`;
+    document.getElementById('adminModalStudentEmail').textContent = request.email;
+    document.getElementById('adminModalStudentPhone').textContent = request.phone || '-';
+    document.getElementById('adminModalStudentFaculty').textContent = request.faculty || '-';
+    
+    // แสดงสถานะปัจจุบัน
+    const adminModalStatus = document.getElementById('adminModalStatus');
+    adminModalStatus.textContent = getStatusText(request.status);
+    adminModalStatus.className = `badge ${getStatusClass(request.status)}`;
+    
+    // แสดงวิธีการรับเอกสาร
+    let deliveryMethodText = '';
+    if (request.delivery_method === 'pickup') {
+        deliveryMethodText = 'รับด้วยตนเองที่มหาวิทยาลัย';
+        document.getElementById('adminModalAddressDiv').style.display = 'none';
+    } else if (request.delivery_method === 'mail') {
+        deliveryMethodText = 'จัดส่งทางไปรษณีย์';
+        document.getElementById('adminModalAddressDiv').style.display = 'block';
+        document.getElementById('adminModalAddress').textContent = `${request.address} ${request.district} ${request.province} ${request.postal_code}`;
+    }
+    document.getElementById('adminModalDeliveryMethod').textContent = deliveryMethodText;
+    
+    // ข้อมูลการชำระเงิน (สมมติว่ามีการชำระเงินแล้ว)
+    document.getElementById('adminModalPaymentStatus').textContent = 'ชำระเงินแล้ว';
+    document.getElementById('adminModalPaymentStatus').className = 'badge bg-success';
+    document.getElementById('adminModalPaymentMethod').textContent = 'โอนเงินผ่านธนาคาร';
+    document.getElementById('adminModalPaymentAmount').textContent = calculateTotalFee(request);
+    document.getElementById('adminModalPaymentDate').textContent = new Date().toLocaleDateString('th-TH');
+    
+    // แสดงประวัติการดำเนินการ
+    const timelineContainer = document.getElementById('adminModalTimeline');
+    timelineContainer.innerHTML = '';
+    
+    if (request.history && request.history.length > 0) {
+        request.history.forEach(item => {
+            const stepElement = document.createElement('div');
+            stepElement.className = `progress-step ${item.status === request.status ? 'active' : 'completed'}`;
+            
+            const dateTime = new Date(item.created_at).toLocaleString('th-TH');
+            
+            stepElement.innerHTML = `
+                <h6>${getStatusText(item.status)}</h6>
+                <p class="text-muted">${dateTime}</p>
+                ${item.comment ? `<p>${item.comment}</p>` : ''}
+            `;
+            
+            timelineContainer.appendChild(stepElement);
+        });
+    } else {
+        timelineContainer.innerHTML = '<p>ไม่มีข้อมูลประวัติการดำเนินการ</p>';
+    }
+    
+    // สร้างลิงก์ดูไฟล์แนบ
+    document.getElementById('adminModalIdCardLink').href = `/uploads/${request.id_card_file}`;
+    
+    // ซ่อน/แสดงส่วนของหลักฐานการชำระเงิน
+    document.getElementById('adminModalSlipSection').style.display = 'none'; // สมมติว่ายังไม่มีไฟล์
+    
+    // Event Listener สำหรับปุ่มอัปเดตสถานะ
+    document.getElementById('adminUpdateStatusBtn').addEventListener('click', function() {
+        showUpdateStatusModal(request.request_id);
+        
+        // ปิด Modal รายละเอียด
+        const adminRequestDetailModal = bootstrap.Modal.getInstance(document.getElementById('adminRequestDetailModal'));
+        adminRequestDetailModal.hide();
+    });
+    
+    // แสดง modal
+    const adminRequestDetailModal = new bootstrap.Modal(document.getElementById('adminRequestDetailModal'));
+    adminRequestDetailModal.show();
+}
+
+// แสดง Modal อัปเดตสถานะคำขอ
+function showUpdateStatusModal(requestId) {
+    // ค้นหาข้อมูลคำขอจาก ID
+    const request = adminRequests.find(req => req.request_id === requestId);
+    if (!request) {
+        showAlert('ไม่พบข้อมูลคำขอ', 'danger');
+        return;
+    }
+    
+    // แสดงข้อมูลบนหน้าต่าง modal
+    document.getElementById('updateRequestId').value = request.request_id;
+    document.getElementById('updateModalRequestId').textContent = request.request_id;
+    document.getElementById('updateModalDocumentType').textContent = request.document_name;
+    document.getElementById('updateModalStudent').textContent = `${request.first_name} ${request.last_name}`;
+    
+    const updateModalCurrentStatus = document.getElementById('updateModalCurrentStatus');
+    updateModalCurrentStatus.textContent = getStatusText(request.status);
+    updateModalCurrentStatus.className = `badge ${getStatusClass(request.status)}`;
+    
+    // ตั้งค่าตัวเลือกสถานะที่สามารถเลือกได้
+    const newStatusSelect = document.getElementById('newStatus');
+    
+    // ลบตัวเลือกเดิมทั้งหมด
+    newStatusSelect.innerHTML = '<option value="" selected disabled>เลือกสถานะ</option>';
+    
+    // เพิ่มตัวเลือกตามสถานะปัจจุบัน
+    if (request.status === 'pending') {
+        newStatusSelect.innerHTML += `
+            <option value="processing">กำลังดำเนินการ</option>
+            <option value="rejected">ปฏิเสธคำขอ</option>
+        `;
+    } else if (request.status === 'processing') {
+        newStatusSelect.innerHTML += `
+            <option value="completed">เสร็จสิ้น</option>
+            <option value="rejected">ปฏิเสธคำขอ</option>
+        `;
+    }
+    
+    // รีเซ็ตฟอร์ม
+    document.getElementById('statusComment').value = '';
+    
+    // แสดง modal
+    const updateStatusModal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
+    updateStatusModal.show();
+}
+
+// คำนวณค่าธรรมเนียมทั้งหมด
+function calculateTotalFee(request) {
+    let documentFee = 0;
+    
+    // กำหนดค่าธรรมเนียมตามประเภทเอกสาร
+    if (request.document_type_id === 1 || request.document_name.includes('นักศึกษา')) {
+        documentFee = 50 * request.copies;
+    } else {
+        documentFee = 100 * request.copies;
+    }
+    
+    // ค่าจัดส่ง
+    const deliveryFee = request.delivery_method === 'mail' ? 50 : 0;
+    
+    return `${(documentFee + deliveryFee).toFixed(2)} บาท`;
+}
+
+// บันทึกการอัปเดตสถานะ
+document.getElementById('saveStatusBtn').addEventListener('click', function() {
+    const requestId = document.getElementById('updateRequestId').value;
+    const newStatus = document.getElementById('newStatus').value;
+    const comment = document.getElementById('statusComment').value;
+    
+    if (!newStatus) {
+        showAlert('กรุณาเลือกสถานะ', 'warning');
+        return;
+    }
+    
+    if (newStatus === 'rejected' && !comment) {
+        showAlert('กรุณาระบุเหตุผลในการปฏิเสธคำขอ', 'warning');
+        return;
+    }
+    
+    // แสดงการโหลด
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    // ส่งคำขออัปเดตสถานะไปยัง API
+    authenticatedFetch(`/api/admin/requests/${requestId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            status: newStatus,
+            comment: comment
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        if (data.message) {
+            // ปิด Modal
+            const updateStatusModal = bootstrap.Modal.getInstance(document.getElementById('updateStatusModal'));
+            updateStatusModal.hide();
+            
+            // โหลดข้อมูลใหม่
+            loadAdminRequests();
+            
+            showAlert(`อัปเดตสถานะสำเร็จ: ${getStatusText(newStatus)}`, 'success');
+        } else {
+            showAlert('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating status:', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showAlert('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'danger');
+    });
+});
+
+// อัปเดตฟังก์ชันตรวจสอบสถานะผู้ใช้หลังจากล็อกอิน
+document.addEventListener('DOMContentLoaded', function() {
+    // เพิ่มการเรียกใช้ฟังก์ชันตรวจสอบสถานะผู้ดูแลระบบ
+    const token = localStorage.getItem('authToken');
+    if (token) {
+        checkAdminStatus();
+    }
+});
+
+// อัปเดตฟังก์ชัน updateLoginButton
+function updateLoginButton() {
+    if (isLoggedIn) {
+        loginBtn.textContent = 'ออกจากระบบ';
+        loginBtn.classList.remove('btn-light');
+        loginBtn.classList.add('btn-outline-light');
+        
+        // ตรวจสอบสถานะผู้ดูแลระบบเมื่อล็อกอินสำเร็จ
+        checkAdminStatus();
+    } else {
+        loginBtn.textContent = 'เข้าสู่ระบบ';
+        loginBtn.classList.remove('btn-outline-light');
+        loginBtn.classList.add('btn-light');
+        
+        isAdmin = false;
+        
+        // ลบเมนูผู้ดูแลระบบ
+        const adminLink = document.getElementById('adminLink');
+        if (adminLink) {
+            adminLink.parentElement.remove();
+        }
+    }
+}
+
+// อัปเดตฟังก์ชันการค้นหาคำขอ
+document.getElementById('pendingSearchInput').addEventListener('keyup', function() {
+    filterRequests('pendingRequestsTable', this.value, adminRequests.filter(req => req.status === 'pending'));
+});
+
+document.getElementById('processingSearchInput').addEventListener('keyup', function() {
+    filterRequests('processingRequestsTable', this.value, adminRequests.filter(req => req.status === 'processing'));
+});
+
+document.getElementById('completedSearchInput').addEventListener('keyup', function() {
+    filterRequests('completedRequestsTable', this.value, adminRequests.filter(req => req.status === 'completed'));
+});
+
+document.getElementById('rejectedSearchInput').addEventListener('keyup', function() {
+    filterRequests('rejectedRequestsTable', this.value, adminRequests.filter(req => req.status === 'rejected'));
+});
+
+document.getElementById('allSearchInput').addEventListener('keyup', function() {
+    filterRequests('allRequestsTable', this.value, adminRequests);
+});
+
+// ฟังก์ชันกรองข้อมูลคำขอตามคำค้นหา
+function filterRequests(tableId, searchText, requests) {
+    if (!searchText) {
+        // ถ้าไม่มีคำค้นหา แสดงข้อมูลทั้งหมด
+        updateAdminTable(tableId, requests);
+        return;
+    }
+    
+    searchText = searchText.toLowerCase();
+    
+    // กรองข้อมูลตามคำค้นหา
+    const filteredRequests = requests.filter(req => 
+        req.request_id.toLowerCase().includes(searchText) ||
+        req.document_name.toLowerCase().includes(searchText) ||
+        req.first_name.toLowerCase().includes(searchText) ||
+        req.last_name.toLowerCase().includes(searchText) ||
+        `${req.first_name} ${req.last_name}`.toLowerCase().includes(searchText)
+    );
+    
+    // อัปเดตตาราง
+    updateAdminTable(tableId, filteredRequests);
+}
+
+// เพิ่มการจัดการการพิมพ์รายละเอียดคำขอสำหรับผู้ดูแลระบบ
+document.getElementById('adminPrintRequestBtn').addEventListener('click', function() {
+    const printContents = document.querySelector('#adminRequestDetailModal .modal-body').innerHTML;
+    const originalContents = document.body.innerHTML;
+    
+    document.body.innerHTML = `
+        <div class="container mt-4">
+            <h3 class="text-center mb-4">รายละเอียดคำขอเอกสาร</h3>
+            ${printContents}
+        </div>
+    `;
+    
+    window.print();
+    
+    document.body.innerHTML = originalContents;
+    
+    // จำเป็นต้องสร้าง modal และเพิ่ม event listener ใหม่หลังจากแทนที่ HTML ทั้งหมด
+    const adminRequestDetailModal = new bootstrap.Modal(document.getElementById('adminRequestDetailModal'));
+    adminRequestDetailModal.show();
+    
+    // เพิ่ม event listener ใหม่
+    document.getElementById('adminUpdateStatusBtn').addEventListener('click', function() {
+        const requestId = document.getElementById('adminModalRequestId').textContent;
+        showUpdateStatusModal(requestId);
+        
+        // ปิด Modal รายละเอียด
+        adminRequestDetailModal.hide();
+    });
+    
+    document.getElementById('adminPrintRequestBtn').addEventListener('click', function() {
+        // ฟังก์ชันพิมพ์
+    });
+});
           // แสดงหน้าหลักเมื่อโหลดเว็บเสร็จ
           showHome();
 });
