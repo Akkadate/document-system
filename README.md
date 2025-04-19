@@ -76,7 +76,7 @@ cat > .env << EOF
 PORT=4700
 DB_HOST=remote.devapp.cc
 DB_USER=postgres
-DB_PASSWORD=Tct85329$
+DB_PASSWORD=
 DB_NAME=student_document_system
 DB_PORT=5432
 JWT_SECRET=your-secret-key-should-be-very-long-and-random
