@@ -921,6 +921,184 @@
     </div>
 </div>
 
+            <!-- Payment Page -->
+<div id="paymentPage" style="display: none;">
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-credit-card me-2"></i>ชำระค่าธรรมเนียม
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <span>คำขอเอกสารของคุณถูกบันทึกแล้ว เลขที่คำขอ: <strong id="paymentRequestId"></strong></span>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            รายละเอียดค่าธรรมเนียม
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>ประเภทเอกสาร:</span>
+                                <span id="paymentDocumentType"></span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>จำนวน:</span>
+                                <span id="paymentCopies"></span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>ค่าเอกสาร:</span>
+                                <span id="paymentDocumentFee"></span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2" id="paymentDeliveryFeeSection">
+                                <span>ค่าจัดส่ง:</span>
+                                <span id="paymentDeliveryFee"></span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between fw-bold">
+                                <span>รวมทั้งสิ้น:</span>
+                                <span id="paymentTotalFee"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            วิธีการชำระเงิน
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="paymentMethod" id="paymentMethodTransfer" value="transfer" checked>
+                                    <label class="form-check-label" for="paymentMethodTransfer">
+                                        <i class="fas fa-university me-2"></i>โอนเงินผ่านธนาคาร
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="paymentMethod" id="paymentMethodCard" value="card">
+                                    <label class="form-check-label" for="paymentMethodCard">
+                                        <i class="fas fa-credit-card me-2"></i>บัตรเครดิต/เดบิต
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="paymentMethod" id="paymentMethodPromptpay" value="promptpay">
+                                    <label class="form-check-label" for="paymentMethodPromptpay">
+                                        <i class="fas fa-qrcode me-2"></i>พร้อมเพย์
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- โอนเงินผ่านธนาคาร -->
+            <div id="transferPaymentSection">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-university me-2"></i>โอนเงินผ่านธนาคาร
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p>โอนเงินมาที่บัญชี</p>
+                                <p class="fw-bold">ธนาคารกรุงไทย สาขามหาวิทยาลัย</p>
+                                <p class="fw-bold">ชื่อบัญชี: มหาวิทยาลัยตัวอย่าง</p>
+                                <p class="fw-bold">เลขที่บัญชี: 123-4-56789-0</p>
+                                <p class="text-danger">*กรุณาระบุเลขที่คำขอในการโอนเงิน*</p>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="transferDate" class="form-label">วันที่โอน</label>
+                                    <input type="date" class="form-control" id="transferDate" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="transferTime" class="form-label">เวลาที่โอน</label>
+                                    <input type="time" class="form-control" id="transferTime" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="transferAmount" class="form-label">จำนวนเงิน</label>
+                                    <input type="number" step="0.01" class="form-control" id="transferAmount" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="slipFile" class="form-label">แนบหลักฐานการโอนเงิน</label>
+                                    <input type="file" class="form-control" id="slipFile" accept=".jpg,.jpeg,.png,.pdf" required>
+                                    <div class="form-text">ไฟล์ .jpg, .png หรือ .pdf ขนาดไม่เกิน 2MB</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- บัตรเครดิต/เดบิต -->
+            <div id="cardPaymentSection" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-credit-card me-2"></i>ชำระด้วยบัตรเครดิต/เดบิต
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="cardNumber" class="form-label">หมายเลขบัตร</label>
+                            <input type="text" class="form-control" id="cardNumber" placeholder="XXXX XXXX XXXX XXXX">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="cardExpiry" class="form-label">วันหมดอายุ</label>
+                                <input type="text" class="form-control" id="cardExpiry" placeholder="MM/YY">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="cardCvv" class="form-label">CVV</label>
+                                <input type="text" class="form-control" id="cardCvv" placeholder="XXX">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cardName" class="form-label">ชื่อบนบัตร</label>
+                            <input type="text" class="form-control" id="cardName" placeholder="CARDHOLDER NAME">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- พร้อมเพย์ -->
+            <div id="promptpaySection" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-qrcode me-2"></i>ชำระด้วยพร้อมเพย์
+                    </div>
+                    <div class="card-body text-center">
+                        <p>สแกน QR Code เพื่อชำระเงิน</p>
+                        <div class="mb-3">
+                            <img src="/api/placeholder/200/200" alt="QR Code" class="img-fluid border">
+                        </div>
+                        <p class="fw-bold">ชื่อบัญชี: มหาวิทยาลัยตัวอย่าง</p>
+                        <p class="fw-bold">จำนวนเงิน: <span id="promptpayAmount"></span> บาท</p>
+                        <div class="mb-3">
+                            <label for="promptpaySlipFile" class="form-label">แนบหลักฐานการชำระเงิน</label>
+                            <input type="file" class="form-control" id="promptpaySlipFile" accept=".jpg,.jpeg,.png,.pdf" required>
+                            <div class="form-text">ไฟล์ .jpg, .png หรือ .pdf ขนาดไม่เกิน 2MB</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-primary" id="submitPaymentBtn">
+                    <i class="fas fa-check-circle me-2"></i>ยืนยันการชำระเงิน
+                </button>
+                <button type="button" class="btn btn-secondary" id="payLaterBtn">
+                    <i class="fas fa-clock me-2"></i>ชำระภายหลัง
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
             <!-- User Guide Modal -->
 <div class="modal fade" id="userGuideModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
