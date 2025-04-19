@@ -9,6 +9,7 @@
 
 ##ระบบขอเอกสารทางการศึกษาออนไลน์
 ###โครงสร้างโปรเจค
+```
 document-system/
 ├── frontend/
 │   ├── index.html
@@ -21,6 +22,7 @@ document-system/
 │   └── uploads/
 └── database/
     └── database-schema.sql
+```
 
 ## ขั้นตอนการติดตั้งแบบรวดเร็ว
 
