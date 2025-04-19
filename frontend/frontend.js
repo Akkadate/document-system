@@ -1236,13 +1236,13 @@ document.getElementById('saveStatusBtn').addEventListener('click', function() {
 });
 
 // อัปเดตฟังก์ชันตรวจสอบสถานะผู้ใช้หลังจากล็อกอิน
-document.addEventListener('DOMContentLoaded', function() {
+//document.addEventListener('DOMContentLoaded', function() {
     // เพิ่มการเรียกใช้ฟังก์ชันตรวจสอบสถานะผู้ดูแลระบบ
     const token = localStorage.getItem('authToken');
     if (token) {
         checkAdminStatus();
     }
-});
+//});
 
 // อัปเดตฟังก์ชัน updateLoginButton
 function updateLoginButton() {
