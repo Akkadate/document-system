@@ -593,6 +593,190 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
+                    // แสดงรายละเอียดคำขอเอกสาร
+               function showRequestDetails(requestId) {
+                   // แสดงการโหลด
+                   document.getElementById('loadingSpinner').style.display = 'flex';
+                   
+                   // เรียกใช้ API เพื่อดึงข้อมูลรายละเอียดคำขอ
+                   authenticatedFetch(`/api/documents/requests/${requestId}`)
+                       .then(response => response.json())
+                       .then(data => {
+                           document.getElementById('loadingSpinner').style.display = 'none';
+                           
+                           // แสดงข้อมูลบนหน้าต่าง modal
+                           document.getElementById('modalRequestId').textContent = data.request_id;
+                           document.getElementById('modalRequestDate').textContent = new Date(data.request_date).toLocaleDateString('th-TH');
+                           document.getElementById('modalDocumentType').textContent = data.document_name;
+                           document.getElementById('modalCopies').textContent = data.copies;
+                           document.getElementById('modalPurpose').textContent = data.purpose;
+                           
+                           // แสดงวิธีการรับเอกสาร
+                           let deliveryMethodText = '';
+                           if (data.delivery_method === 'pickup') {
+                               deliveryMethodText = 'รับด้วยตนเองที่มหาวิทยาลัย';
+                               document.getElementById('modalAddressDiv').style.display = 'none';
+                           } else if (data.delivery_method === 'mail') {
+                               deliveryMethodText = 'จัดส่งทางไปรษณีย์';
+                               document.getElementById('modalAddressDiv').style.display = 'block';
+                               document.getElementById('modalAddress').textContent = `${data.address} ${data.district} ${data.province} ${data.postal_code}`;
+                           }
+                           document.getElementById('modalDeliveryMethod').textContent = deliveryMethodText;
+                           
+                           // แสดงสถานะปัจจุบัน
+                           const modalStatus = document.getElementById('modalStatus');
+                           modalStatus.textContent = getStatusText(data.status);
+                           modalStatus.className = `badge ${getStatusClass(data.status)}`;
+                           
+                           // แสดงประวัติการดำเนินการ
+                           const timelineContainer = document.getElementById('modalTimeline');
+                           timelineContainer.innerHTML = '';
+                           
+                           if (data.history && data.history.length > 0) {
+                               data.history.forEach(item => {
+                                   const stepElement = document.createElement('div');
+                                   stepElement.className = `progress-step ${item.status === data.status ? 'active' : 'completed'}`;
+                                   
+                                   const dateTime = new Date(item.created_at).toLocaleString('th-TH');
+                                   
+                                   stepElement.innerHTML = `
+                                       <h6>${getStatusText(item.status)}</h6>
+                                       <p class="text-muted">${dateTime}</p>
+                                       ${item.comment ? `<p>${item.comment}</p>` : ''}
+                                   `;
+                                   
+                                   timelineContainer.appendChild(stepElement);
+                               });
+                           } else {
+                               timelineContainer.innerHTML = '<p>ไม่มีข้อมูลประวัติการดำเนินการ</p>';
+                           }
+                           
+                           // แสดง modal
+                           const requestDetailModal = new bootstrap.Modal(document.getElementById('requestDetailModal'));
+                           requestDetailModal.show();
+                       })
+                       .catch(error => {
+                           console.error('Error fetching request details:', error);
+                           document.getElementById('loadingSpinner').style.display = 'none';
+                           showAlert('เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียดคำขอ', 'danger');
+                       });
+               }
+
+               // ฟังก์ชันช่วยแปลงสถานะเป็นข้อความภาษาไทย
+               function getStatusText(status) {
+                   switch (status) {
+                       case 'pending':
+                           return 'รอดำเนินการ';
+                       case 'processing':
+                           return 'กำลังดำเนินการ';
+                       case 'completed':
+                           return 'เสร็จสิ้น';
+                       case 'rejected':
+                           return 'ถูกปฏิเสธ';
+                       default:
+                           return 'ไม่ทราบสถานะ';
+                   }
+               }
+               
+               // ฟังก์ชันช่วยแปลงสถานะเป็น CSS class สำหรับ badge
+               function getStatusClass(status) {
+                   switch (status) {
+                       case 'pending':
+                           return 'bg-secondary';
+                       case 'processing':
+                           return 'bg-warning text-dark';
+                       case 'completed':
+                           return 'bg-success';
+                       case 'rejected':
+                           return 'bg-danger';
+                       default:
+                           return 'bg-secondary';
+                   }
+               }
+               // เพิ่มการจัดการการพิมพ์รายละเอียดคำขอ
+               document.getElementById('printRequestDetail').addEventListener('click', function() {
+                   const printContents = document.querySelector('#requestDetailModal .modal-body').innerHTML;
+                   const originalContents = document.body.innerHTML;
+                   
+                   document.body.innerHTML = `
+                       <div class="container mt-4">
+                           <h3 class="text-center mb-4">รายละเอียดคำขอเอกสาร</h3>
+                           ${printContents}
+                       </div>
+                   `;
+                   
+                   window.print();
+                   
+                   document.body.innerHTML = originalContents;
+                   
+                   // จำเป็นต้องสร้าง modal ใหม่หลังจากแทนที่ HTML ทั้งหมด
+                   const requestDetailModal = new bootstrap.Modal(document.getElementById('requestDetailModal'));
+                   requestDetailModal.show();
+               });
+               
+               // เพิ่มการจัดการคู่มือการใช้งาน
+               document.getElementById('viewGuideBtn').addEventListener('click', function() {
+                   const userGuideModal = new bootstrap.Modal(document.getElementById('userGuideModal'));
+                   userGuideModal.show();
+               });
+               
+               document.getElementById('printGuide').addEventListener('click', function() {
+                   const printContents = document.querySelector('#userGuideModal .modal-body').innerHTML;
+                   const originalContents = document.body.innerHTML;
+                   
+                   document.body.innerHTML = `
+                       <div class="container mt-4">
+                           <h3 class="text-center mb-4">คู่มือการใช้งานระบบขอเอกสารทางการศึกษาออนไลน์</h3>
+                           ${printContents}
+                       </div>
+                   `;
+                   
+                   window.print();
+                   
+                   document.body.innerHTML = originalContents;
+                   
+                   // จำเป็นต้องสร้าง modal ใหม่หลังจากแทนที่ HTML ทั้งหมด
+                   const userGuideModal = new bootstrap.Modal(document.getElementById('userGuideModal'));
+                   userGuideModal.show();
+               });
+
+               // อัปเดตฟังก์ชัน เพิ่มการจัดการค่าธรรมเนียม
+               document.getElementById('documentType').addEventListener('change', updateFeeCalculation);
+               document.getElementById('copies').addEventListener('change', updateFeeCalculation);
+               document.getElementById('deliveryMethod').addEventListener('change', updateFeeCalculation);
+               
+               // อัปเดตการคำนวณค่าธรรมเนียม
+               function updateFeeCalculation() {
+                   const documentType = document.getElementById('documentType').value;
+                   const copies = parseInt(document.getElementById('copies').value) || 0;
+                   const deliveryMethod = document.getElementById('deliveryMethod').value;
+                   
+                   let documentFee = 0;
+                   let deliveryFee = 0;
+                   
+                   // กำหนดค่าธรรมเนียมตามประเภทเอกสาร
+                   if (documentType === 'studentCertificate' || documentType === '1') {
+                       documentFee = 50 * copies;
+                   } else if (documentType === 'transcript' || documentType === '2') {
+                       documentFee = 100 * copies;
+                   } else if (documentType === 'graduationCertificate' || documentType === '3') {
+                       documentFee = 100 * copies;
+                   }
+                   
+                   // ค่าจัดส่ง
+                   if (deliveryMethod === 'mail') {
+                       deliveryFee = 50; // สมมติค่าจัดส่ง 50 บาท
+                       document.getElementById('deliveryFeeSection').style.display = 'flex';
+                   } else {
+                       document.getElementById('deliveryFeeSection').style.display = 'none';
+                   }
+                   
+                   // แสดงค่าธรรมเนียม
+                   document.getElementById('documentFee').textContent = `${documentFee.toFixed(2)} บาท`;
+                   document.getElementById('deliveryFee').textContent = `${deliveryFee.toFixed(2)} บาท`;
+                   document.getElementById('totalFee').textContent = `${(documentFee + deliveryFee).toFixed(2)} บาท`;
+               }
+
           // แสดงหน้าหลักเมื่อโหลดเว็บเสร็จ
           showHome();
 });
