@@ -7,6 +7,21 @@
 2. **Backend**: Node.js + Express API
 3. **Database**: PostgreSQL
 
+##ระบบขอเอกสารทางการศึกษาออนไลน์
+###โครงสร้างโปรเจค
+document-system/
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   └── frontend.js
+├── backend/
+│   ├── server.js
+│   ├── package.json
+│   ├── .env
+│   └── uploads/
+└── database/
+    └── database-schema.sql
+
 ## ขั้นตอนการติดตั้งแบบรวดเร็ว
 
 ### 1. ติดตั้ง Node.js และ NPM
