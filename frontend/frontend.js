@@ -1345,6 +1345,261 @@ document.getElementById('adminPrintRequestBtn').addEventListener('click', functi
         // ฟังก์ชันพิมพ์
     });
 });
-          // แสดงหน้าหลักเมื่อโหลดเว็บเสร็จ
+       // เพิ่มตัวแปรและฟังก์ชันสำหรับหน้าชำระเงิน
+let currentPaymentRequest = null;
+
+// แสดงหน้าชำระเงิน
+function showPaymentPage() {
+    homePage.style.display = 'none';
+    loginPage.style.display = 'none';
+    registerPage.style.display = 'none';
+    requestPage.style.display = 'none';
+    statusPage.style.display = 'none';
+    document.getElementById('paymentPage').style.display = 'block';
+}
+
+// อัปเดตฟังก์ชันการส่งคำขอเอกสารให้นำไปสู่หน้าชำระเงิน
+documentRequestForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    // ตรวจสอบว่ามีการล็อกอินหรือไม่
+    if (!isLoggedIn) {
+        showLogin();
+        showAlert('กรุณาเข้าสู่ระบบก่อนขอเอกสาร', 'warning');
+        return;
+    }
+    
+    // สร้าง FormData เพื่อส่งข้อมูลรวมถึงไฟล์
+    const formData = new FormData();
+    formData.append('documentType', document.getElementById('documentType').value);
+    formData.append('copies', document.getElementById('copies').value);
+    
+    const purpose = document.getElementById('purpose').value;
+    formData.append('purpose', purpose);
+    
+    if (purpose === 'other') {
+        formData.append('otherPurpose', document.getElementById('otherPurpose').value);
+    }
+    
+    const deliveryMethod = document.getElementById('deliveryMethod').value;
+    formData.append('deliveryMethod', deliveryMethod);
+    
+    if (deliveryMethod === 'mail') {
+        formData.append('address', document.getElementById('address').value);
+        formData.append('district', document.getElementById('district').value);
+        formData.append('province', document.getElementById('province').value);
+        formData.append('postalCode', document.getElementById('postalCode').value);
+    }
+    
+    const idCardFile = document.getElementById('idCardFile').files[0];
+    if (idCardFile) {
+        formData.append('idCard', idCardFile);
+    }
+    
+    // แสดงการโหลด
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    // ส่งข้อมูลไปยัง API
+    const token = localStorage.getItem('authToken');
+    
+    fetch('/api/documents/request', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        if (data.requestId) {
+            // เก็บข้อมูลคำขอปัจจุบันไว้
+            currentPaymentRequest = {
+                requestId: data.requestId,
+                documentType: document.getElementById('documentType').options[document.getElementById('documentType').selectedIndex].text,
+                copies: document.getElementById('copies').value,
+                documentFee: calculateDocumentFee(document.getElementById('documentType').value, document.getElementById('copies').value),
+                deliveryMethod: deliveryMethod,
+                deliveryFee: (deliveryMethod === 'mail') ? 50 : 0
+            };
+            
+            // แสดงข้อมูลบนหน้าชำระเงิน
+            document.getElementById('paymentRequestId').textContent = currentPaymentRequest.requestId;
+            document.getElementById('paymentDocumentType').textContent = currentPaymentRequest.documentType;
+            document.getElementById('paymentCopies').textContent = currentPaymentRequest.copies;
+            document.getElementById('paymentDocumentFee').textContent = `${currentPaymentRequest.documentFee.toFixed(2)} บาท`;
+            
+            if (currentPaymentRequest.deliveryMethod === 'mail') {
+                document.getElementById('paymentDeliveryFeeSection').style.display = 'flex';
+                document.getElementById('paymentDeliveryFee').textContent = `${currentPaymentRequest.deliveryFee.toFixed(2)} บาท`;
+            } else {
+                document.getElementById('paymentDeliveryFeeSection').style.display = 'none';
+            }
+            
+            const totalFee = currentPaymentRequest.documentFee + currentPaymentRequest.deliveryFee;
+            document.getElementById('paymentTotalFee').textContent = `${totalFee.toFixed(2)} บาท`;
+            document.getElementById('promptpayAmount').textContent = totalFee.toFixed(2);
+            
+            // กำหนดค่าเริ่มต้นสำหรับวันที่และเวลาโอน
+            const now = new Date();
+            document.getElementById('transferDate').value = now.toISOString().split('T')[0];
+            document.getElementById('transferTime').value = now.toTimeString().substring(0, 5);
+            document.getElementById('transferAmount').value = totalFee.toFixed(2);
+            
+            // รีเซ็ตฟอร์มขอเอกสาร
+            documentRequestForm.reset();
+            
+            // แสดงหน้าชำระเงิน
+            showPaymentPage();
+        } else {
+            showAlert(data.message || 'เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Document request error:', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showAlert('เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
+    });
+});
+
+// ฟังก์ชันคำนวณค่าธรรมเนียมเอกสาร
+function calculateDocumentFee(documentType, copies) {
+    copies = parseInt(copies) || 1;
+    
+    if (documentType === 'studentCertificate' || documentType === '1') {
+        return 50 * copies;
+    } else if (documentType === 'transcript' || documentType === '2') {
+        return 100 * copies;
+    } else if (documentType === 'graduationCertificate' || documentType === '3') {
+        return 100 * copies;
+    }
+    
+    return 0;
+}
+
+// สลับแสดงส่วนของวิธีการชำระเงิน
+document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.getElementById('transferPaymentSection').style.display = 'none';
+        document.getElementById('cardPaymentSection').style.display = 'none';
+        document.getElementById('promptpaySection').style.display = 'none';
+        
+        if (this.value === 'transfer') {
+            document.getElementById('transferPaymentSection').style.display = 'block';
+        } else if (this.value === 'card') {
+            document.getElementById('cardPaymentSection').style.display = 'block';
+        } else if (this.value === 'promptpay') {
+            document.getElementById('promptpaySection').style.display = 'block';
+        }
+    });
+});
+
+// ปุ่มยืนยันการชำระเงิน
+document.getElementById('submitPaymentBtn').addEventListener('click', function() {
+    if (!currentPaymentRequest) {
+        showAlert('ไม่พบข้อมูลการชำระเงิน', 'danger');
+        return;
+    }
+    
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+    
+    // ตรวจสอบข้อมูลที่จำเป็น
+    if (paymentMethod === 'transfer') {
+        if (!document.getElementById('transferDate').value || 
+            !document.getElementById('transferTime').value || 
+            !document.getElementById('transferAmount').value || 
+            !document.getElementById('slipFile').files[0]) {
+            showAlert('กรุณากรอกข้อมูลการโอนเงินให้ครบถ้วน', 'warning');
+            return;
+        }
+    } else if (paymentMethod === 'card') {
+        if (!document.getElementById('cardNumber').value || 
+            !document.getElementById('cardExpiry').value || 
+            !document.getElementById('cardCvv').value || 
+            !document.getElementById('cardName').value) {
+            showAlert('กรุณากรอกข้อมูลบัตรให้ครบถ้วน', 'warning');
+            return;
+        }
+    } else if (paymentMethod === 'promptpay') {
+        if (!document.getElementById('promptpaySlipFile').files[0]) {
+            showAlert('กรุณาแนบหลักฐานการชำระเงิน', 'warning');
+            return;
+        }
+    }
+    
+    // แสดงการโหลด
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    // สร้าง FormData สำหรับส่งข้อมูลการชำระเงิน
+    const formData = new FormData();
+    formData.append('requestId', currentPaymentRequest.requestId);
+    formData.append('paymentMethod', paymentMethod);
+    formData.append('amount', currentPaymentRequest.documentFee + currentPaymentRequest.deliveryFee);
+    
+    if (paymentMethod === 'transfer') {
+        formData.append('transferDate', document.getElementById('transferDate').value);
+        formData.append('transferTime', document.getElementById('transferTime').value);
+        formData.append('transferAmount', document.getElementById('transferAmount').value);
+        formData.append('slip', document.getElementById('slipFile').files[0]);
+    } else if (paymentMethod === 'card') {
+        formData.append('cardNumber', document.getElementById('cardNumber').value);
+        formData.append('cardExpiry', document.getElementById('cardExpiry').value);
+        formData.append('cardCvv', document.getElementById('cardCvv').value);
+        formData.append('cardName', document.getElementById('cardName').value);
+    } else if (paymentMethod === 'promptpay') {
+        formData.append('slip', document.getElementById('promptpaySlipFile').files[0]);
+    }
+    
+    // ส่งข้อมูลไปยัง API
+    const token = localStorage.getItem('authToken');
+    
+    // จำลองการส่งคำขอชำระเงิน (ในโปรเจคจริงควรส่งไปที่ API)
+    setTimeout(() => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showHome();
+        showAlert(`ชำระเงินสำเร็จ เลขที่คำขอ: ${currentPaymentRequest.requestId}`, 'success');
+        
+        // รีเซ็ตข้อมูลคำขอปัจจุบัน
+        currentPaymentRequest = null;
+    }, 2000);
+    
+    // ในโปรเจคจริง ควรเรียกใช้ API จริง เช่น
+    /*
+    fetch('/api/payments', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        if (data.success) {
+            showHome();
+            showAlert(`ชำระเงินสำเร็จ เลขที่คำขอ: ${currentPaymentRequest.requestId}`, 'success');
+            currentPaymentRequest = null;
+        } else {
+            showAlert(data.message || 'เกิดข้อผิดพลาดในการชำระเงิน', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Payment error:', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showAlert('เกิดข้อผิดพลาดในการชำระเงิน', 'danger');
+    });
+    */
+});
+
+// ปุ่มชำระภายหลัง
+document.getElementById('payLaterBtn').addEventListener('click', function() {
+    showHome();
+    showAlert(`บันทึกคำขอสำเร็จ เลขที่คำขอ: ${currentPaymentRequest.requestId} คุณสามารถชำระเงินภายหลังได้ในหน้าติดตามสถานะ`, 'info');
+    currentPaymentRequest = null;
+});
+     
+     // แสดงหน้าหลักเมื่อโหลดเว็บเสร็จ
           showHome();
 });
