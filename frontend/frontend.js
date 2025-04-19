@@ -4,6 +4,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
      // เพิ่มการเรียกใช้ฟังก์ชันดึงประเภทเอกสาร
     getDocumentTypes();
+
+    // ตรวจสอบว่ามี token ใน localStorage หรือไม่ เพื่อการล็อกอินอัตโนมัติ
+    const token = localStorage.getItem('authToken');
+    if (token) {
+        // ดึงข้อมูลผู้ใช้
+        fetch('/api/user/profile', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                // ถ้ามีปัญหา เช่น token หมดอายุ ให้ลบออก
+                localStorage.removeItem('authToken');
+                throw new Error('Invalid token');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // ล็อกอินสำเร็จ
+            isLoggedIn = true;
+            currentUser = data.user;
+            updateLoginButton();
+        })
+        .catch(error => {
+            console.error('Auto login error:', error);
+            // กรณีมีข้อผิดพลาด ลบ token และให้ล็อกอินใหม่
+            localStorage.removeItem('authToken');
+        });
+    }
     
     // ตัวแปรเก็บสถานะการล็อกอิน
     let isLoggedIn = false;
@@ -106,8 +136,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-   // แทนที่ฟังก์ชัน simulateLogin เดิม ด้วยการเรียกใช้ API จริง
-loginForm.addEventListener('submit', (e) => {
+    // แทนที่ฟังก์ชัน simulateLogin เดิม ด้วยการเรียกใช้ API จริง
+    loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     
     const studentId = document.getElementById('studentId').value;
@@ -154,11 +184,11 @@ loginForm.addEventListener('submit', (e) => {
         console.error('Login error:', error);
         document.getElementById('loadingSpinner').style.display = 'none';
         showAlert('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'danger');
+     });
     });
-});
 
     // แก้ไขการดึงข้อมูลคำขอเอกสาร
-function getDocumentRequests() {
+    function getDocumentRequests() {
     // แสดงการโหลด
     document.getElementById('loadingSpinner').style.display = 'flex';
     
@@ -195,373 +225,374 @@ function getDocumentRequests() {
             document.getElementById('loadingSpinner').style.display = 'none';
             showAlert('เกิดข้อผิดพลาดในการดึงข้อมูลคำขอเอกสาร', 'danger');
         });
-}
+      }
 
-// เพิ่มฟังก์ชันสำหรับการส่งคำขอที่ต้องการการยืนยันตัวตน
-function authenticatedFetch(url, options = {}) {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-        showLogin();
-        showAlert('กรุณาเข้าสู่ระบบ', 'warning');
-        return Promise.reject('ไม่มี token');
-    }
-    
-    // เพิ่ม token ในส่วน headers
-    const headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
-    };
-    
-    return fetch(url, {
-        ...options,
-        headers
-    });
-}
-
-    // แสดงข้อความแจ้งเตือน
-    function showAlert(message, type = 'success') {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.role = 'alert';
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        
-        const container = document.querySelector('.container');
-        container.insertBefore(alertDiv, container.firstChild);
-        
-        // ตั้งเวลาลบข้อความแจ้งเตือน
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 5000);
-    }
-
-    // อัปเดตตารางข้อมูลคำขอเอกสาร
-    function updateRequestsTable(requests) {
-        const tableBody = document.getElementById('requestsTableBody');
-        tableBody.innerHTML = '';
-        
-        if (requests.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="5" class="text-center">ไม่มีคำขอเอกสาร</td>`;
-            tableBody.appendChild(row);
-            return;
-        }
-        
-        requests.forEach(request => {
-            const row = document.createElement('tr');
-            
-            // กำหนดสีของ badge ตามสถานะ
-            let badgeClass = 'bg-secondary';
-            if (request.status === 'processing') {
-                badgeClass = 'bg-warning';
-            } else if (request.status === 'completed') {
-                badgeClass = 'bg-success';
-            } else if (request.status === 'rejected') {
-                badgeClass = 'bg-danger';
+        // เพิ่มฟังก์ชันสำหรับการส่งคำขอที่ต้องการการยืนยันตัวตน
+        function authenticatedFetch(url, options = {}) {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                showLogin();
+                showAlert('กรุณาเข้าสู่ระบบ', 'warning');
+                return Promise.reject('ไม่มี token');
             }
             
-            row.innerHTML = `
-                <td>${request.requestId}</td>
-                <td>${request.documentTypeThai}</td>
-                <td>${request.requestDate}</td>
-                <td><span class="badge ${badgeClass} status-badge">${request.statusThai}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-info view-details" data-id="${request.requestId}">ดูรายละเอียด</button>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
-        
-        // เพิ่ม event listener สำหรับปุ่มดูรายละเอียด
-        document.querySelectorAll('.view-details').forEach(button => {
-            button.addEventListener('click', function() {
-                const requestId = this.getAttribute('data-id');
-                showRequestDetails(requestId);
+            // เพิ่ม token ในส่วน headers
+            const headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+            
+            return fetch(url, {
+                ...options,
+                headers
             });
+        }
+
+          // แสดงข้อความแจ้งเตือน
+          function showAlert(message, type = 'success') {
+              const alertDiv = document.createElement('div');
+              alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+              alertDiv.role = 'alert';
+              alertDiv.innerHTML = `
+                  ${message}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              `;
+              
+              const container = document.querySelector('.container');
+              container.insertBefore(alertDiv, container.firstChild);
+              
+              // ตั้งเวลาลบข้อความแจ้งเตือน
+              setTimeout(() => {
+                  alertDiv.remove();
+              }, 5000);
+          }
+
+               // อัปเดตตารางข้อมูลคำขอเอกสาร
+             function updateRequestsTable(requests) {
+              const tableBody = document.getElementById('requestsTableBody');
+              tableBody.innerHTML = '';
+              
+              if (requests.length === 0) {
+                  const row = document.createElement('tr');
+                  row.innerHTML = `<td colspan="5" class="text-center">ไม่มีคำขอเอกสาร</td>`;
+                  tableBody.appendChild(row);
+                  return;
+              }
+              
+              requests.forEach(request => {
+                  const row = document.createElement('tr');
+                  
+                  // กำหนดสีของ badge ตามสถานะ
+                  let badgeClass = 'bg-secondary';
+                  if (request.status === 'processing') {
+                      badgeClass = 'bg-warning';
+                  } else if (request.status === 'completed') {
+                      badgeClass = 'bg-success';
+                  } else if (request.status === 'rejected') {
+                      badgeClass = 'bg-danger';
+                  }
+                  
+                  row.innerHTML = `
+                      <td>${request.requestId}</td>
+                      <td>${request.documentTypeThai}</td>
+                      <td>${request.requestDate}</td>
+                      <td><span class="badge ${badgeClass} status-badge">${request.statusThai}</span></td>
+                      <td>
+                          <button class="btn btn-sm btn-info view-details" data-id="${request.requestId}">ดูรายละเอียด</button>
+                      </td>
+                  `;
+                  tableBody.appendChild(row);
+              });
+              
+              // เพิ่ม event listener สำหรับปุ่มดูรายละเอียด
+              document.querySelectorAll('.view-details').forEach(button => {
+                  button.addEventListener('click', function() {
+                      const requestId = this.getAttribute('data-id');
+                      showRequestDetails(requestId);
+                  });
+              });
+          }
+
+          // แสดงรายละเอียดคำขอเอกสาร
+          function showRequestDetails(requestId) {
+              // ในโปรเจคจริง ควรดึงข้อมูลรายละเอียดจาก API
+              document.getElementById('modalRequestId').textContent = requestId;
+              
+              // จำลองข้อมูลรายละเอียดคำขอ
+              if (requestId === 'DOC20250419-001') {
+                  document.getElementById('modalRequestDate').textContent = '19/04/2025';
+                  document.getElementById('modalDocumentType').textContent = 'ใบรับรองการเป็นนักศึกษา';
+                  document.getElementById('modalCopies').textContent = '1';
+                  document.getElementById('modalPurpose').textContent = 'สมัครงาน';
+                  document.getElementById('modalDeliveryMethod').textContent = 'รับด้วยตนเองที่มหาวิทยาลัย';
+                  document.getElementById('modalAddressDiv').style.display = 'none';
+              } else {
+                  document.getElementById('modalRequestDate').textContent = '10/04/2025';
+                  document.getElementById('modalDocumentType').textContent = 'ใบแสดงผลการเรียน';
+                  document.getElementById('modalCopies').textContent = '2';
+                  document.getElementById('modalPurpose').textContent = 'สมัครเรียนต่อ';
+                  document.getElementById('modalDeliveryMethod').textContent = 'จัดส่งทางไปรษณีย์';
+                  document.getElementById('modalAddressDiv').style.display = 'block';
+                  document.getElementById('modalAddress').textContent = '123 ถนนตัวอย่าง ตำบลตัวอย่าง อำเภอเมือง จังหวัดตัวอย่าง 10000';
+              }
+              
+              requestDetailModal.show();
+          }
+
+       // Event Listeners
+
+      // ลิงก์นำทางไปหน้าต่างๆ
+            homeLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showHome();
+            });
+
+            requestLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showRequest();
+            });
+
+           // อัปเดตส่วนติดตามสถานะเพื่อเรียกใช้ API
+        statusLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showStatus();
+            
+            // โหลดข้อมูลคำขอเอกสาร
+            if (isLoggedIn) {
+                getDocumentRequests();
+            }
         });
-    }
 
-    // แสดงรายละเอียดคำขอเอกสาร
-    function showRequestDetails(requestId) {
-        // ในโปรเจคจริง ควรดึงข้อมูลรายละเอียดจาก API
-        document.getElementById('modalRequestId').textContent = requestId;
-        
-        // จำลองข้อมูลรายละเอียดคำขอ
-        if (requestId === 'DOC20250419-001') {
-            document.getElementById('modalRequestDate').textContent = '19/04/2025';
-            document.getElementById('modalDocumentType').textContent = 'ใบรับรองการเป็นนักศึกษา';
-            document.getElementById('modalCopies').textContent = '1';
-            document.getElementById('modalPurpose').textContent = 'สมัครงาน';
-            document.getElementById('modalDeliveryMethod').textContent = 'รับด้วยตนเองที่มหาวิทยาลัย';
-            document.getElementById('modalAddressDiv').style.display = 'none';
-        } else {
-            document.getElementById('modalRequestDate').textContent = '10/04/2025';
-            document.getElementById('modalDocumentType').textContent = 'ใบแสดงผลการเรียน';
-            document.getElementById('modalCopies').textContent = '2';
-            document.getElementById('modalPurpose').textContent = 'สมัครเรียนต่อ';
-            document.getElementById('modalDeliveryMethod').textContent = 'จัดส่งทางไปรษณีย์';
-            document.getElementById('modalAddressDiv').style.display = 'block';
-            document.getElementById('modalAddress').textContent = '123 ถนนตัวอย่าง ตำบลตัวอย่าง อำเภอเมือง จังหวัดตัวอย่าง 10000';
-        }
-        
-        requestDetailModal.show();
-    }
 
-    // Event Listeners
-
-    // ลิงก์นำทางไปหน้าต่างๆ
-    homeLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showHome();
-    });
-
-    requestLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showRequest();
-    });
-
-   // อัปเดตส่วนติดตามสถานะเพื่อเรียกใช้ API
-statusLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    showStatus();
-    
-    // โหลดข้อมูลคำขอเอกสาร
-    if (isLoggedIn) {
-        getDocumentRequests();
-    }
-});
-    
-
-    // ปุ่มล็อกอิน/ล็อกเอาท์
-    loginBtn.addEventListener('click', function() {
-        if (isLoggedIn) {
-            // ล็อกเอาท์
-            isLoggedIn = false;
-            currentUser = null;
-            updateLoginButton();
-            showHome();
-            showAlert('ออกจากระบบเรียบร้อยแล้ว', 'info');
-        } else {
-            // แสดงหน้าล็อกอิน
-            showLogin();
-        }
-    });
-
-    // ลิงก์ลงทะเบียน
-    registerLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showRegister();
-    });
-
-    // ลิงก์กลับไปหน้าล็อกอิน
-    backToLoginLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showLogin();
-    });
-
-    // ปุ่มเริ่มขอเอกสาร
-    startRequestBtn.addEventListener('click', () => {
-        showRequest();
-    });
-
-    // ปุ่มยกเลิกคำขอ
-    cancelRequest.addEventListener('click', () => {
-        document.getElementById('documentRequestForm').reset();
-        showHome();
-    });
-
-    // ฟอร์มล็อกอิน
-    loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        const studentId = document.getElementById('studentId').value;
-        const password = document.getElementById('password').value;
-        
-        // แสดงการโหลด (ในโปรเจคจริงควรมีการแสดง loading)
-        
-        simulateLogin(studentId, password)
-            .then(user => {
-                isLoggedIn = true;
-                currentUser = user;
+            // เพิ่มฟังก์ชันล็อกเอาท์ที่สมบูรณ์
+        loginBtn.addEventListener('click', function() {
+            if (isLoggedIn) {
+                // ล็อกเอาท์
+                localStorage.removeItem('authToken');
+                isLoggedIn = false;
+                currentUser = null;
                 updateLoginButton();
                 showHome();
-                showAlert(`ยินดีต้อนรับ ${user.firstName} ${user.lastName}`, 'success');
-                loginForm.reset();
+                showAlert('ออกจากระบบเรียบร้อยแล้ว', 'info');
+            } else {
+                // แสดงหน้าล็อกอิน
+                showLogin();
+            }
+        });
+
+                // ลิงก์ลงทะเบียน
+              registerLink.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  showRegister();
+              });
+
+              // ลิงก์กลับไปหน้าล็อกอิน
+              backToLoginLink.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  showLogin();
+              });
+
+              // ปุ่มเริ่มขอเอกสาร
+              startRequestBtn.addEventListener('click', () => {
+                  showRequest();
+              });
+
+              // ปุ่มยกเลิกคำขอ
+              cancelRequest.addEventListener('click', () => {
+                  document.getElementById('documentRequestForm').reset();
+                  showHome();
+              });
+
+              // ฟอร์มล็อกอิน
+              loginForm.addEventListener('submit', (e) => {
+                  e.preventDefault();
+                  
+                  const studentId = document.getElementById('studentId').value;
+                  const password = document.getElementById('password').value;
+                  
+                  // แสดงการโหลด (ในโปรเจคจริงควรมีการแสดง loading)
+                  
+                  simulateLogin(studentId, password)
+                      .then(user => {
+                          isLoggedIn = true;
+                          currentUser = user;
+                          updateLoginButton();
+                          showHome();
+                          showAlert(`ยินดีต้อนรับ ${user.firstName} ${user.lastName}`, 'success');
+                          loginForm.reset();
+                      })
+                      .catch(error => {
+                          showAlert(error, 'danger');
+                      });
+              });
+
+             // ในไฟล์ frontend.js
+          // ตรวจสอบข้อมูลก่อนส่งไปยัง API
+          registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const userData = {
+              studentId: document.getElementById('regStudentId').value,
+              password: document.getElementById('regPassword').value,
+              firstName: document.getElementById('firstName').value,
+              lastName: document.getElementById('lastName').value,
+              email: document.getElementById('email').value,
+              phone: document.getElementById('phone').value,
+              faculty: document.getElementById('faculty').value
+            };
+            
+            console.log('Sending registration data:', userData); // เพิ่มการล็อกในฝั่ง Frontend
+            
+            // ส่งข้อมูลไปยัง API
+            fetch('/api/register', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(userData)
+            })
+            .then(response => response.json())
+            .then(data => {
+              console.log('Registration response:', data);
+              if (data.message === 'ลงทะเบียนสำเร็จ') {
+                showAlert('ลงทะเบียนสำเร็จ กรุณาเข้าสู่ระบบ', 'success');
+                showLogin();
+                registerForm.reset();
+              } else {
+                showAlert(data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน', 'danger');
+              }
             })
             .catch(error => {
-                showAlert(error, 'danger');
+              console.error('Registration error:', error);
+              showAlert('เกิดข้อผิดพลาดในการลงทะเบียน', 'danger');
             });
-    });
+          });
 
-   // ในไฟล์ frontend.js
-// ตรวจสอบข้อมูลก่อนส่งไปยัง API
-registerForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  
-  const userData = {
-    studentId: document.getElementById('regStudentId').value,
-    password: document.getElementById('regPassword').value,
-    firstName: document.getElementById('firstName').value,
-    lastName: document.getElementById('lastName').value,
-    email: document.getElementById('email').value,
-    phone: document.getElementById('phone').value,
-    faculty: document.getElementById('faculty').value
-  };
-  
-  console.log('Sending registration data:', userData); // เพิ่มการล็อกในฝั่ง Frontend
-  
-  // ส่งข้อมูลไปยัง API
-  fetch('/api/register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(userData)
-  })
-  .then(response => response.json())
-  .then(data => {
-    console.log('Registration response:', data);
-    if (data.message === 'ลงทะเบียนสำเร็จ') {
-      showAlert('ลงทะเบียนสำเร็จ กรุณาเข้าสู่ระบบ', 'success');
-      showLogin();
-      registerForm.reset();
-    } else {
-      showAlert(data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน', 'danger');
-    }
-  })
-  .catch(error => {
-    console.error('Registration error:', error);
-    showAlert('เกิดข้อผิดพลาดในการลงทะเบียน', 'danger');
-  });
-});
-
-// แก้ไขส่วนการขอเอกสาร
-documentRequestForm.addEventListener('submit', (e) => {
-    e.preventDefault();
+          // แก้ไขส่วนการขอเอกสาร
+          documentRequestForm.addEventListener('submit', (e) => {
+              e.preventDefault();
+              
+              // ตรวจสอบว่ามีการล็อกอินหรือไม่
+              if (!isLoggedIn) {
+                  showLogin();
+                  showAlert('กรุณาเข้าสู่ระบบก่อนขอเอกสาร', 'warning');
+                  return;
+              }
     
-    // ตรวจสอบว่ามีการล็อกอินหรือไม่
-    if (!isLoggedIn) {
-        showLogin();
-        showAlert('กรุณาเข้าสู่ระบบก่อนขอเอกสาร', 'warning');
-        return;
-    }
-    
-    // สร้าง FormData เพื่อส่งข้อมูลรวมถึงไฟล์
-    const formData = new FormData();
-    formData.append('documentType', document.getElementById('documentType').value);
-    formData.append('copies', document.getElementById('copies').value);
-    
-    const purpose = document.getElementById('purpose').value;
-    formData.append('purpose', purpose);
-    
-    if (purpose === 'other') {
-        formData.append('otherPurpose', document.getElementById('otherPurpose').value);
-    }
-    
-    const deliveryMethod = document.getElementById('deliveryMethod').value;
-    formData.append('deliveryMethod', deliveryMethod);
-    
-    if (deliveryMethod === 'mail') {
-        formData.append('address', document.getElementById('address').value);
-        formData.append('district', document.getElementById('district').value);
-        formData.append('province', document.getElementById('province').value);
-        formData.append('postalCode', document.getElementById('postalCode').value);
-    }
-    
-    const idCardFile = document.getElementById('idCardFile').files[0];
-    if (idCardFile) {
-        formData.append('idCard', idCardFile);
-    }
-    
-    // แสดงการโหลด
-    document.getElementById('loadingSpinner').style.display = 'flex';
-    
-    // ส่งข้อมูลไปยัง API
-    const token = localStorage.getItem('authToken');
-    
-    fetch('/api/documents/request', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('loadingSpinner').style.display = 'none';
-        
-        if (data.requestId) {
-            showHome();
-            showAlert(`ส่งคำขอเอกสารสำเร็จ เลขที่คำขอ: ${data.requestId}`, 'success');
-            documentRequestForm.reset();
-        } else {
-            showAlert(data.message || 'เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Document request error:', error);
-        document.getElementById('loadingSpinner').style.display = 'none';
-        showAlert('เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
-    });
-});
-
-// เพิ่มฟังก์ชันสำหรับดึงข้อมูลประเภทเอกสาร
-function getDocumentTypes() {
-    fetch('/api/document-types')
-        .then(response => response.json())
-        .then(data => {
-            // อัปเดตตัวเลือกในฟอร์มขอเอกสาร
-            const documentTypeSelect = document.getElementById('documentType');
-            // ล้างตัวเลือกเดิม แต่เก็บตัวเลือกแรก (default)
-            const defaultOption = documentTypeSelect.options[0];
-            documentTypeSelect.innerHTML = '';
-            documentTypeSelect.appendChild(defaultOption);
-            
-            // เพิ่มตัวเลือกใหม่จาก API
-            data.forEach(type => {
-                const option = document.createElement('option');
-                option.value = type.id;
-                option.textContent = type.name;
-                documentTypeSelect.appendChild(option);
+                // สร้าง FormData เพื่อส่งข้อมูลรวมถึงไฟล์
+                const formData = new FormData();
+                formData.append('documentType', document.getElementById('documentType').value);
+                formData.append('copies', document.getElementById('copies').value);
+                
+                const purpose = document.getElementById('purpose').value;
+                formData.append('purpose', purpose);
+                
+                if (purpose === 'other') {
+                    formData.append('otherPurpose', document.getElementById('otherPurpose').value);
+                }
+                
+                const deliveryMethod = document.getElementById('deliveryMethod').value;
+                formData.append('deliveryMethod', deliveryMethod);
+                
+                if (deliveryMethod === 'mail') {
+                    formData.append('address', document.getElementById('address').value);
+                    formData.append('district', document.getElementById('district').value);
+                    formData.append('province', document.getElementById('province').value);
+                    formData.append('postalCode', document.getElementById('postalCode').value);
+                }
+                
+                const idCardFile = document.getElementById('idCardFile').files[0];
+                if (idCardFile) {
+                    formData.append('idCard', idCardFile);
+                }
+                
+                // แสดงการโหลด
+                document.getElementById('loadingSpinner').style.display = 'flex';
+                
+                // ส่งข้อมูลไปยัง API
+                const token = localStorage.getItem('authToken');
+                
+                fetch('/api/documents/request', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    
+                    if (data.requestId) {
+                        showHome();
+                        showAlert(`ส่งคำขอเอกสารสำเร็จ เลขที่คำขอ: ${data.requestId}`, 'success');
+                        documentRequestForm.reset();
+                    } else {
+                        showAlert(data.message || 'เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Document request error:', error);
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    showAlert('เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
+                });
             });
-        })
-        .catch(error => {
-            console.error('Error fetching document types:', error);
-        });
-}
+
+          // เพิ่มฟังก์ชันสำหรับดึงข้อมูลประเภทเอกสาร
+          function getDocumentTypes() {
+              fetch('/api/document-types')
+                  .then(response => response.json())
+                  .then(data => {
+                      // อัปเดตตัวเลือกในฟอร์มขอเอกสาร
+                      const documentTypeSelect = document.getElementById('documentType');
+                      // ล้างตัวเลือกเดิม แต่เก็บตัวเลือกแรก (default)
+                      const defaultOption = documentTypeSelect.options[0];
+                      documentTypeSelect.innerHTML = '';
+                      documentTypeSelect.appendChild(defaultOption);
+                      
+                      // เพิ่มตัวเลือกใหม่จาก API
+                      data.forEach(type => {
+                          const option = document.createElement('option');
+                          option.value = type.id;
+                          option.textContent = type.name;
+                          documentTypeSelect.appendChild(option);
+                      });
+                  })
+                  .catch(error => {
+                      console.error('Error fetching document types:', error);
+                  });
+          }
 
     
 
-    // เมื่อเลือกวัตถุประสงค์ "อื่นๆ"
-    purposeSelect.addEventListener('change', function() {
-        if (this.value === 'other') {
-            otherPurposeDiv.style.display = 'block';
-            document.getElementById('otherPurpose').setAttribute('required', '');
-        } else {
-            otherPurposeDiv.style.display = 'none';
-            document.getElementById('otherPurpose').removeAttribute('required');
-        }
-    });
+            // เมื่อเลือกวัตถุประสงค์ "อื่นๆ"
+            purposeSelect.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    otherPurposeDiv.style.display = 'block';
+                    document.getElementById('otherPurpose').setAttribute('required', '');
+                } else {
+                    otherPurposeDiv.style.display = 'none';
+                    document.getElementById('otherPurpose').removeAttribute('required');
+                }
+            });
 
-    // เมื่อเลือกวิธีการรับเอกสาร "จัดส่งทางไปรษณีย์"
-    deliveryMethodSelect.addEventListener('change', function() {
-        if (this.value === 'mail') {
-            addressDiv.style.display = 'block';
-            document.getElementById('address').setAttribute('required', '');
-            document.getElementById('district').setAttribute('required', '');
-            document.getElementById('province').setAttribute('required', '');
-            document.getElementById('postalCode').setAttribute('required', '');
-        } else {
-            addressDiv.style.display = 'none';
-            document.getElementById('address').removeAttribute('required');
-            document.getElementById('district').removeAttribute('required');
-            document.getElementById('province').removeAttribute('required');
-            document.getElementById('postalCode').removeAttribute('required');
-        }
-    });
+            // เมื่อเลือกวิธีการรับเอกสาร "จัดส่งทางไปรษณีย์"
+            deliveryMethodSelect.addEventListener('change', function() {
+                if (this.value === 'mail') {
+                    addressDiv.style.display = 'block';
+                    document.getElementById('address').setAttribute('required', '');
+                    document.getElementById('district').setAttribute('required', '');
+                    document.getElementById('province').setAttribute('required', '');
+                    document.getElementById('postalCode').setAttribute('required', '');
+                } else {
+                    addressDiv.style.display = 'none';
+                    document.getElementById('address').removeAttribute('required');
+                    document.getElementById('district').removeAttribute('required');
+                    document.getElementById('province').removeAttribute('required');
+                    document.getElementById('postalCode').removeAttribute('required');
+                }
+            });
 
-    // แสดงหน้าหลักเมื่อโหลดเว็บเสร็จ
-    showHome();
+          // แสดงหน้าหลักเมื่อโหลดเว็บเสร็จ
+          showHome();
 });
