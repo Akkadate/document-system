@@ -1,6 +1,10 @@
 // frontend.js - โค้ด JavaScript สำหรับฝั่ง Frontend
 
 document.addEventListener('DOMContentLoaded', function() {
+
+     // เพิ่มการเรียกใช้ฟังก์ชันดึงประเภทเอกสาร
+    getDocumentTypes();
+    
     // ตัวแปรเก็บสถานะการล็อกอิน
     let isLoggedIn = false;
     let currentUser = null;
@@ -102,90 +106,117 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // จำลองการล็อกอิน
-    function simulateLogin(studentId, password) {
-        // ในโปรเจคจริง ควรส่งคำขอไปยัง API เพื่อตรวจสอบการล็อกอิน
-        return new Promise((resolve, reject) => {
-            // จำลองการส่งคำขอไปยังเซิร์ฟเวอร์
-            setTimeout(() => {
-                if (studentId === '1234567890' && password === 'password123') {
-                    resolve({
-                        studentId: '1234567890',
-                        firstName: 'นายตัวอย่าง',
-                        lastName: 'นามสกุลตัวอย่าง',
-                        email: 'example@email.com'
-                    });
-                } else {
-                    reject('รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง');
-                }
-            }, 1000);
-        });
-    }
+   // แทนที่ฟังก์ชัน simulateLogin เดิม ด้วยการเรียกใช้ API จริง
+loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const studentId = document.getElementById('studentId').value;
+    const password = document.getElementById('password').value;
+    
+    // แสดงการโหลด (อาจเพิ่ม loading spinner ตรงนี้)
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    // ส่งข้อมูลไปยัง API
+    fetch('/api/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ studentId, password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Login response:', data);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        
+        if (data.message === 'เข้าสู่ระบบสำเร็จ') {
+            // เก็บ token ไว้ใน localStorage
+            localStorage.setItem('authToken', data.token);
+            
+            // บันทึกข้อมูลผู้ใช้ปัจจุบัน
+            isLoggedIn = true;
+            currentUser = data.user;
+            
+            // อัปเดตส่วนแสดงผล
+            updateLoginButton();
+            showHome();
+            
+            // แสดงข้อความต้อนรับ
+            showAlert(`ยินดีต้อนรับ ${data.user.firstName} ${data.user.lastName}`, 'success');
+            
+            // รีเซ็ตฟอร์ม
+            loginForm.reset();
+        } else {
+            showAlert(data.message || 'รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Login error:', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showAlert('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'danger');
+    });
+});
 
-    // จำลองการลงทะเบียน
-    function simulateRegister(userData) {
-        // ในโปรเจคจริง ควรส่งคำขอไปยัง API เพื่อลงทะเบียน
-        return new Promise((resolve, reject) => {
-            // จำลองการส่งคำขอไปยังเซิร์ฟเวอร์
-            setTimeout(() => {
-                if (userData.studentId && userData.password) {
-                    resolve({
-                        studentId: userData.studentId,
-                        firstName: userData.firstName,
-                        lastName: userData.lastName,
-                        email: userData.email
-                    });
-                } else {
-                    reject('กรุณากรอกข้อมูลให้ครบถ้วน');
-                }
-            }, 1000);
+    // แก้ไขการดึงข้อมูลคำขอเอกสาร
+function getDocumentRequests() {
+    // แสดงการโหลด
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    authenticatedFetch('/api/documents/requests')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            
+            // แปลงข้อมูลที่ได้รับมาให้ตรงกับรูปแบบที่ต้องการ
+            const requests = data.map(request => {
+                // แปลงสถานะเป็นภาษาไทย
+                let statusThai = 'รอดำเนินการ';
+                if (request.status === 'processing') statusThai = 'กำลังดำเนินการ';
+                else if (request.status === 'completed') statusThai = 'เสร็จสิ้น';
+                else if (request.status === 'rejected') statusThai = 'ถูกปฏิเสธ';
+                
+                // แปลงวันที่เป็นรูปแบบไทย
+                const requestDate = new Date(request.request_date).toLocaleDateString('th-TH');
+                
+                return {
+                    requestId: request.request_id,
+                    documentType: request.document_type_id,
+                    documentTypeThai: request.document_name,
+                    requestDate: requestDate,
+                    status: request.status,
+                    statusThai: statusThai
+                };
+            });
+            
+            updateRequestsTable(requests);
+        })
+        .catch(error => {
+            console.error('Error fetching requests:', error);
+            document.getElementById('loadingSpinner').style.display = 'none';
+            showAlert('เกิดข้อผิดพลาดในการดึงข้อมูลคำขอเอกสาร', 'danger');
         });
-    }
+}
 
-    // จำลองการส่งคำขอเอกสาร
-    function simulateRequestDocument(documentData) {
-        // ในโปรเจคจริง ควรส่งคำขอไปยัง API เพื่อขอเอกสาร
-        return new Promise((resolve, reject) => {
-            // จำลองการส่งคำขอไปยังเซิร์ฟเวอร์
-            setTimeout(() => {
-                const requestId = 'DOC' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-                resolve({
-                    requestId: requestId,
-                    documentType: documentData.documentType,
-                    status: 'pending',
-                    requestDate: new Date().toLocaleDateString('th-TH')
-                });
-            }, 1000);
-        });
+// เพิ่มฟังก์ชันสำหรับการส่งคำขอที่ต้องการการยืนยันตัวตน
+function authenticatedFetch(url, options = {}) {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showLogin();
+        showAlert('กรุณาเข้าสู่ระบบ', 'warning');
+        return Promise.reject('ไม่มี token');
     }
-
-    // จำลองการดึงข้อมูลคำขอเอกสาร
-    function simulateGetRequests() {
-        // ในโปรเจคจริง ควรส่งคำขอไปยัง API เพื่อดึงข้อมูลคำขอ
-        return new Promise((resolve) => {
-            // จำลองการส่งคำขอไปยังเซิร์ฟเวอร์
-            setTimeout(() => {
-                resolve([
-                    {
-                        requestId: 'DOC20250419-001',
-                        documentType: 'studentCertificate',
-                        documentTypeThai: 'ใบรับรองการเป็นนักศึกษา',
-                        requestDate: '19/04/2025',
-                        status: 'processing',
-                        statusThai: 'กำลังดำเนินการ'
-                    },
-                    {
-                        requestId: 'DOC20250410-042',
-                        documentType: 'transcript',
-                        documentTypeThai: 'ใบแสดงผลการเรียน',
-                        requestDate: '10/04/2025',
-                        status: 'completed',
-                        statusThai: 'เสร็จสิ้น'
-                    }
-                ]);
-            }, 1000);
-        });
-    }
+    
+    // เพิ่ม token ในส่วน headers
+    const headers = {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
+    };
+    
+    return fetch(url, {
+        ...options,
+        headers
+    });
+}
 
     // แสดงข้อความแจ้งเตือน
     function showAlert(message, type = 'success') {
@@ -291,17 +322,17 @@ document.addEventListener('DOMContentLoaded', function() {
         showRequest();
     });
 
-    statusLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showStatus();
-        
-        // โหลดข้อมูลคำขอเอกสาร
-        if (isLoggedIn) {
-            simulateGetRequests().then(requests => {
-                updateRequestsTable(requests);
-            });
-        }
-    });
+   // อัปเดตส่วนติดตามสถานะเพื่อเรียกใช้ API
+statusLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showStatus();
+    
+    // โหลดข้อมูลคำขอเอกสาร
+    if (isLoggedIn) {
+        getDocumentRequests();
+    }
+});
+    
 
     // ปุ่มล็อกอิน/ล็อกเอาท์
     loginBtn.addEventListener('click', function() {
@@ -406,35 +437,102 @@ registerForm.addEventListener('submit', (e) => {
   });
 });
 
-    // ฟอร์มขอเอกสาร
-    documentRequestForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+// แก้ไขส่วนการขอเอกสาร
+documentRequestForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    // ตรวจสอบว่ามีการล็อกอินหรือไม่
+    if (!isLoggedIn) {
+        showLogin();
+        showAlert('กรุณาเข้าสู่ระบบก่อนขอเอกสาร', 'warning');
+        return;
+    }
+    
+    // สร้าง FormData เพื่อส่งข้อมูลรวมถึงไฟล์
+    const formData = new FormData();
+    formData.append('documentType', document.getElementById('documentType').value);
+    formData.append('copies', document.getElementById('copies').value);
+    
+    const purpose = document.getElementById('purpose').value;
+    formData.append('purpose', purpose);
+    
+    if (purpose === 'other') {
+        formData.append('otherPurpose', document.getElementById('otherPurpose').value);
+    }
+    
+    const deliveryMethod = document.getElementById('deliveryMethod').value;
+    formData.append('deliveryMethod', deliveryMethod);
+    
+    if (deliveryMethod === 'mail') {
+        formData.append('address', document.getElementById('address').value);
+        formData.append('district', document.getElementById('district').value);
+        formData.append('province', document.getElementById('province').value);
+        formData.append('postalCode', document.getElementById('postalCode').value);
+    }
+    
+    const idCardFile = document.getElementById('idCardFile').files[0];
+    if (idCardFile) {
+        formData.append('idCard', idCardFile);
+    }
+    
+    // แสดงการโหลด
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    // ส่งข้อมูลไปยัง API
+    const token = localStorage.getItem('authToken');
+    
+    fetch('/api/documents/request', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingSpinner').style.display = 'none';
         
-        const documentData = {
-            documentType: document.getElementById('documentType').value,
-            copies: document.getElementById('copies').value,
-            purpose: document.getElementById('purpose').value,
-            otherPurpose: document.getElementById('otherPurpose').value,
-            deliveryMethod: document.getElementById('deliveryMethod').value,
-            address: document.getElementById('address').value,
-            district: document.getElementById('district').value,
-            province: document.getElementById('province').value,
-            postalCode: document.getElementById('postalCode').value,
-            idCardFile: document.getElementById('idCardFile').files[0]
-        };
-        
-        // แสดงการโหลด (ในโปรเจคจริงควรมีการแสดง loading)
-        
-        simulateRequestDocument(documentData)
-            .then(result => {
-                showHome();
-                showAlert(`ส่งคำขอเอกสารสำเร็จ เลขที่คำขอ: ${result.requestId}`, 'success');
-                documentRequestForm.reset();
-            })
-            .catch(error => {
-                showAlert(error, 'danger');
-            });
+        if (data.requestId) {
+            showHome();
+            showAlert(`ส่งคำขอเอกสารสำเร็จ เลขที่คำขอ: ${data.requestId}`, 'success');
+            documentRequestForm.reset();
+        } else {
+            showAlert(data.message || 'เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Document request error:', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showAlert('เกิดข้อผิดพลาดในการส่งคำขอเอกสาร', 'danger');
     });
+});
+
+// เพิ่มฟังก์ชันสำหรับดึงข้อมูลประเภทเอกสาร
+function getDocumentTypes() {
+    fetch('/api/document-types')
+        .then(response => response.json())
+        .then(data => {
+            // อัปเดตตัวเลือกในฟอร์มขอเอกสาร
+            const documentTypeSelect = document.getElementById('documentType');
+            // ล้างตัวเลือกเดิม แต่เก็บตัวเลือกแรก (default)
+            const defaultOption = documentTypeSelect.options[0];
+            documentTypeSelect.innerHTML = '';
+            documentTypeSelect.appendChild(defaultOption);
+            
+            // เพิ่มตัวเลือกใหม่จาก API
+            data.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.id;
+                option.textContent = type.name;
+                documentTypeSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching document types:', error);
+        });
+}
+
+    
 
     // เมื่อเลือกวัตถุประสงค์ "อื่นๆ"
     purposeSelect.addEventListener('change', function() {
